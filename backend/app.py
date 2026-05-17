@@ -10,9 +10,18 @@ import google.generativeai as genai
 
 import os
 
+
 # LOAD ENV VARIABLES
 
 load_dotenv()
+
+
+# FLASK APP
+
+app = Flask(__name__)
+
+CORS(app)
+
 
 # GEMINI CONFIGURATION
 
@@ -20,17 +29,13 @@ genai.configure(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
+
 # GEMINI MODEL
 
 model = genai.GenerativeModel(
     "gemini-1.5-flash"
 )
 
-# FLASK APP
-
-app = Flask(__name__)
-
-CORS(app)
 
 # MONGODB CONNECTION
 
@@ -40,7 +45,8 @@ client = MongoClient(
 
 db = client["portfolioDB"]
 
-contacts_collection = db["contacts"]
+contacts = db["contacts"]
+
 
 # HOME ROUTE
 
@@ -48,137 +54,112 @@ contacts_collection = db["contacts"]
 
 def home():
 
-    return {
-        "message": "Backend Running Successfully"
-    }
+    return jsonify({
+        "message": "Portfolio Backend Running Successfully"
+    })
 
-# CONTACT FORM ROUTE
+
+# CONTACT FORM API
 
 @app.route("/contact", methods=["POST"])
 
 def contact():
 
-    data = request.json
+    try:
 
-    contacts_collection.insert_one({
+        data = request.json
 
-        "name": data["name"],
-        "email": data["email"],
-        "message": data["message"]
+        contacts.insert_one({
 
-    })
+            "name": data.get("name"),
 
-    return jsonify({
+            "email": data.get("email"),
 
-        "message": "Message Stored Successfully"
+            "message": data.get("message")
 
-    })
+        })
 
-# AI CHAT ROUTE
+        return jsonify({
 
-@app.route("/chat", methods=["POST"])
+            "success": True,
 
-def chat():
+            "message": "Message sent successfully"
+
+        })
+
+    except Exception as e:
+
+        return jsonify({
+
+            "success": False,
+
+            "error": str(e)
+
+        })
+
+
+# AI CHAT API
+
+@app.route("/ai", methods=["POST"])
+
+def ai_chat():
 
     try:
 
-        user_message = request.json["message"].lower()
+        data = request.json
 
-        # PREDEFINED RESPONSES
+        user_message = data.get("message")
 
-        if "skill" in user_message:
 
-            reply = """
-            Srikanth is skilled in:
-            React, Flask, MongoDB, Python,
-            JavaScript, AI Integration,
-            Frontend and Backend Development.
-            """
+        prompt = f"""
+You are Srikanth's AI Portfolio Assistant.
 
-        elif "project" in user_message:
+ONLY answer questions related to:
+- Srikanth
+- portfolio
+- skills
+- projects
+- education
+- technologies
+- contact information
+- career goals
 
-            reply = """
-            Srikanth's major projects are:
-            1. AI Portfolio Assistant
-            2. Farmer Support System
-            3. QR Attendance System
-            """
+If user asks unrelated questions,
+reply politely:
+"I am designed only for portfolio-related questions."
 
-        elif "about" in user_message:
+User Question:
+{user_message}
+"""
 
-            reply = """
-            Srikanth is an AIML student and Full Stack Developer
-            passionate about AI-powered applications.
-            """
 
-        elif "contact" in user_message:
-
-            reply = """
-            You can contact Srikanth using the
-            contact form available in this portfolio.
-            """
-
-        elif "technology" in user_message:
-
-            reply = """
-            Technologies used in this portfolio:
-            React, Flask, MongoDB,
-            Framer Motion, Gemini AI.
-            """
-
-        elif "education" in user_message:
-
-            reply = """
-            Srikanth is currently pursuing AIML
-            (Artificial Intelligence and Machine Learning).
-            """
-
-        else:
-
-            prompt = f"""
-
-            You are Srikanth's Portfolio AI Assistant.
-
-            Answer ONLY portfolio-related questions.
-
-            Keep answers short, professional,
-            and portfolio-focused.
-
-            Portfolio Information:
-
-            - AIML Student
-            - Full Stack Developer
-            - Skilled in React, Flask, MongoDB, Python
-            - Built AI Portfolio Assistant
-            - Built Farmer Support System
-            - Built QR Attendance System
-
-            User Question:
-            {user_message}
-
-            """
-
-            response = model.generate_content(prompt)
-
-            reply = response.text
+        response = model.generate_content(
+            prompt
+        )
 
         return jsonify({
 
-            "reply": reply
+            "reply": response.text
 
         })
 
-    except Exception:
+    except Exception as e:
 
         return jsonify({
 
-            "reply":
-            "Portfolio assistant is temporarily busy. Please try again."
+            "reply": "AI service temporarily unavailable.",
+
+            "error": str(e)
 
         })
 
-# RUN APP
+
+# RUN SERVER
 
 if __name__ == "__main__":
 
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )

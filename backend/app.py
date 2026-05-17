@@ -20,7 +20,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
-CORS(app)
+CORS(
+    app,
+    resources={r"/*": {"origins": "*"}}
+)
 
 
 # GEMINI CONFIGURATION

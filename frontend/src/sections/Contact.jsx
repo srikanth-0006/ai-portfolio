@@ -11,37 +11,46 @@ export default function Contact() {
     message: "",
   });
 
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
-
       [e.target.name]: e.target.value,
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
       const response = await axios.post(
         "https://portfolio-backend-39kn.onrender.com/contact",
-
         formData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 20000,
+        },
       );
 
-      if (response.status === 200) {
+      if (response.data?.success) {
         alert("Message Sent Successfully!");
-
         setFormData({
           name: "",
           email: "",
           message: "",
         });
+      } else {
+        alert(response.data?.error || "Failed to send message");
       }
     } catch (error) {
-      console.log(error);
-
-      alert("Failed to send message");
+      console.log("CONTACT ERROR:", error?.response?.data || error.message);
+      alert(error?.response?.data?.error || "Failed to send message");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,6 +71,7 @@ export default function Contact() {
             placeholder="Your Name"
             value={formData.name}
             onChange={handleChange}
+            required
           />
 
           <input
@@ -70,6 +80,7 @@ export default function Contact() {
             placeholder="Your Email"
             value={formData.email}
             onChange={handleChange}
+            required
           />
 
           <textarea
@@ -78,9 +89,12 @@ export default function Contact() {
             rows="6"
             value={formData.message}
             onChange={handleChange}
+            required
           ></textarea>
 
-          <button type="submit">Send Message</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Sending..." : "Send Message"}
+          </button>
         </form>
 
         <div className="social-links">

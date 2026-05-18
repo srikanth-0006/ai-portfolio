@@ -1,23 +1,14 @@
 from flask import Flask, request, jsonify
-
 from flask_cors import CORS
-
 from pymongo import MongoClient
-
 from dotenv import load_dotenv
-
 import google.generativeai as genai
-
 import os
 
-
 # LOAD ENV VARIABLES
-
 load_dotenv()
 
-
 # FLASK APP
-
 app = Flask(__name__)
 
 CORS(
@@ -25,23 +16,17 @@ CORS(
     resources={r"/*": {"origins": "*"}}
 )
 
-
 # GEMINI CONFIGURATION
-
 genai.configure(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
-
 # GEMINI MODEL
-
 model = genai.GenerativeModel(
     "gemini-1.5-flash"
 )
 
-
 # MONGODB CONNECTION
-
 client = MongoClient(
     os.getenv("MONGO_URI")
 )
@@ -50,22 +35,16 @@ db = client["portfolioDB"]
 
 contacts = db["contacts"]
 
-
 # HOME ROUTE
-
 @app.route("/")
-
 def home():
 
     return jsonify({
         "message": "Portfolio Backend Running Successfully"
     })
 
-
 # CONTACT FORM API
-
 @app.route("/contact", methods=["POST"])
-
 def contact():
 
     try:
@@ -75,9 +54,7 @@ def contact():
         contacts.insert_one({
 
             "name": data.get("name"),
-
             "email": data.get("email"),
-
             "message": data.get("message")
 
         })
@@ -85,26 +62,23 @@ def contact():
         return jsonify({
 
             "success": True,
-
             "message": "Message sent successfully"
 
         })
 
     except Exception as e:
 
+        print("CONTACT ERROR:", str(e))
+
         return jsonify({
 
             "success": False,
-
             "error": str(e)
 
-        })
-
+        }), 500
 
 # AI CHAT API
-
 @app.route("/ai", methods=["POST"])
-
 def ai_chat():
 
     try:
@@ -113,6 +87,13 @@ def ai_chat():
 
         user_message = data.get("message")
 
+        if not user_message:
+
+            return jsonify({
+
+                "reply": "Please enter a message."
+
+            }), 400
 
         prompt = f"""
 You are Srikanth's AI Portfolio Assistant.
@@ -135,30 +116,36 @@ User Question:
 {user_message}
 """
 
+        response = model.generate_content(prompt)
 
-        response = model.generate_content(
-            prompt
-        )
+        ai_reply = ""
+
+        if hasattr(response, "text") and response.text:
+
+            ai_reply = response.text
+
+        else:
+
+            ai_reply = "AI could not generate a response."
 
         return jsonify({
 
-            "reply": response.text
+            "reply": ai_reply
 
         })
 
     except Exception as e:
 
+        print("AI ERROR:", str(e))
+
         return jsonify({
 
             "reply": "AI service temporarily unavailable.",
-
             "error": str(e)
 
-        })
-
+        }), 500
 
 # RUN SERVER
-
 if __name__ == "__main__":
 
     app.run(

@@ -24,7 +24,7 @@ export default function Contact() {
 
     try {
       const response = await axios.post(
-        " https://portfolio-backend-39kn.onrender.com/contact",
+        "https://portfolio-backend-39kn.onrender.com/contact",
 
         formData,
       );

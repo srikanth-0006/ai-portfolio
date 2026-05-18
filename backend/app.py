@@ -11,6 +11,7 @@ load_dotenv()
 # FLASK APP
 app = Flask(__name__)
 
+# ENABLE CORS
 CORS(
     app,
     resources={r"/*": {"origins": "*"}}
@@ -49,7 +50,14 @@ def contact():
 
     try:
 
-        data = request.json
+        data = request.get_json()
+
+        if not data:
+
+            return jsonify({
+                "success": False,
+                "message": "No data received"
+            }), 400
 
         contacts.insert_one({
 
@@ -83,16 +91,20 @@ def ai_chat():
 
     try:
 
-        data = request.json
+        data = request.get_json()
+
+        if not data:
+
+            return jsonify({
+                "reply": "No data received"
+            }), 400
 
         user_message = data.get("message")
 
         if not user_message:
 
             return jsonify({
-
-                "reply": "Please enter a message."
-
+                "reply": "Message is required"
             }), 400
 
         prompt = f"""
@@ -118,20 +130,18 @@ User Question:
 
         response = model.generate_content(prompt)
 
-        ai_reply = ""
+        reply_text = ""
 
         if hasattr(response, "text") and response.text:
 
-            ai_reply = response.text
+            reply_text = response.text.strip()
 
         else:
 
-            ai_reply = "AI could not generate a response."
+            reply_text = "AI could not generate a response."
 
         return jsonify({
-
-            "reply": ai_reply
-
+            "reply": reply_text
         })
 
     except Exception as e:
@@ -139,10 +149,7 @@ User Question:
         print("AI ERROR:", str(e))
 
         return jsonify({
-
-            "reply": "AI service temporarily unavailable.",
-            "error": str(e)
-
+            "reply": f"Server Error: {str(e)}"
         }), 500
 
 # RUN SERVER

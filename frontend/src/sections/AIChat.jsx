@@ -31,8 +31,7 @@ export default function AIChat() {
 
     try {
       const response = await axios.post(
-        "https://portfolio-backend-39kn.onrender.com",
-
+        "https://portfolio-backend-39kn.onrender.com/ai",
         {
           message: currentMessage,
         },
@@ -40,22 +39,19 @@ export default function AIChat() {
 
       const aiMessage = {
         type: "ai",
-
         text: response.data.reply,
       };
 
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
-      console.log(error);
+      console.log("AI ERROR:", error);
 
-      setMessages((prev) => [
-        ...prev,
+      const errorMessage = {
+        type: "ai",
+        text: "Backend connection failed.",
+      };
 
-        {
-          type: "ai",
-          text: "AI response failed.",
-        },
-      ]);
+      setMessages((prev) => [...prev, errorMessage]);
     }
 
     setLoading(false);

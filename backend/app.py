@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 from dotenv import load_dotenv
-import google.generativeai as genai
 import os
 
 # LOAD ENV VARIABLES
@@ -12,29 +11,17 @@ load_dotenv()
 app = Flask(__name__)
 
 # ENABLE CORS
-CORS(
-    app,
-    resources={r"/*": {"origins": "*"}}
-)
-
-# GEMINI CONFIGURATION
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
-
-# GEMINI MODEL
-model = genai.GenerativeModel(
-    "gemini-1.5-flash"
-)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # MONGODB CONNECTION
-client = MongoClient(
-    os.getenv("MONGO_URI")
-)
+mongo_uri = os.getenv("MONGO_URI")
+
+client = MongoClient(mongo_uri)
 
 db = client["portfolioDB"]
 
 contacts = db["contacts"]
+
 
 # HOME ROUTE
 @app.route("/")
@@ -44,26 +31,20 @@ def home():
         "message": "Portfolio Backend Running Successfully"
     })
 
-# CONTACT FORM API
+
+# CONTACT FORM ROUTE
 @app.route("/contact", methods=["POST"])
 def contact():
 
     try:
 
-        data = request.get_json()
-
-        if not data:
-
-            return jsonify({
-                "success": False,
-                "message": "No data received"
-            }), 400
+        data = request.get_json(force=True)
 
         contacts.insert_one({
 
-            "name": data.get("name"),
-            "email": data.get("email"),
-            "message": data.get("message")
+            "name": data.get("name", ""),
+            "email": data.get("email", ""),
+            "message": data.get("message", "")
 
         })
 
@@ -72,7 +53,7 @@ def contact():
             "success": True,
             "message": "Message sent successfully"
 
-        })
+        }), 200
 
     except Exception as e:
 
@@ -81,76 +62,108 @@ def contact():
         return jsonify({
 
             "success": False,
-            "error": str(e)
+            "error": "Failed to send message"
 
         }), 500
 
-# AI CHAT API
+
+# AI RESPONSE FUNCTION
+def portfolio_reply(user_message):
+
+    msg = user_message.lower().strip()
+
+    # SKILLS
+    if "skill" in msg or "technology" in msg:
+
+        return (
+            "Srikanth is skilled in React, Flask, MongoDB, "
+            "Python, JavaScript, HTML, CSS, GitHub, "
+            "Framer Motion, and AI integration."
+        )
+
+    # PROJECTS
+    elif "project" in msg:
+
+        return (
+            "Srikanth has developed projects like "
+            "AI Portfolio Assistant, Farmer Support System, "
+            "and QR Attendance System."
+        )
+
+    # ABOUT
+    elif "about" in msg or "yourself" in msg:
+
+        return (
+            "Srikanth is an AIML student and Full Stack Developer "
+            "passionate about AI and modern web development."
+        )
+
+    # EDUCATION
+    elif "education" in msg or "study" in msg:
+
+        return (
+            "Srikanth is currently pursuing AIML "
+            "(Artificial Intelligence and Machine Learning)."
+        )
+
+    # CONTACT
+    elif "contact" in msg or "linkedin" in msg or "github" in msg:
+
+        return (
+            "You can connect with Srikanth through "
+            "GitHub, LinkedIn, or the contact form "
+            "available in the portfolio."
+        )
+
+    # CAREER
+    elif "goal" in msg or "career" in msg:
+
+        return (
+            "Srikanth aims to become a strong "
+            "Full Stack and AI Developer."
+        )
+
+    # DEFAULT
+    else:
+
+        return (
+            "I am Srikanth's Portfolio Assistant. "
+            "Please ask about skills, projects, "
+            "education, contact, or career goals."
+        )
+
+
+# AI CHAT ROUTE
 @app.route("/ai", methods=["POST"])
+@app.route("/chat", methods=["POST"])
 def ai_chat():
 
     try:
 
-        data = request.get_json()
+        data = request.get_json(force=True)
 
-        if not data:
+        user_message = data.get("message", "")
 
-            return jsonify({
-                "reply": "No data received"
-            }), 400
-
-        user_message = data.get("message")
-
-        if not user_message:
+        if not user_message.strip():
 
             return jsonify({
-                "reply": "Message is required"
+                "reply": "Please enter a message."
             }), 400
 
-        prompt = f"""
-You are Srikanth's AI Portfolio Assistant.
-
-ONLY answer questions related to:
-- Srikanth
-- portfolio
-- skills
-- projects
-- education
-- technologies
-- contact information
-- career goals
-
-If user asks unrelated questions,
-reply politely:
-"I am designed only for portfolio-related questions."
-
-User Question:
-{user_message}
-"""
-
-        response = model.generate_content(prompt)
-
-        reply_text = ""
-
-        if hasattr(response, "text") and response.text:
-
-            reply_text = response.text.strip()
-
-        else:
-
-            reply_text = "AI could not generate a response."
+        reply = portfolio_reply(user_message)
 
         return jsonify({
-            "reply": reply_text
-        })
+            "reply": reply
+        }), 200
 
     except Exception as e:
 
         print("AI ERROR:", str(e))
 
         return jsonify({
-            "reply": f"Server Error: {str(e)}"
+            "reply": "AI Assistant temporarily unavailable."
         }), 500
+
 
 # RUN SERVER
 if __name__ == "__main__":
